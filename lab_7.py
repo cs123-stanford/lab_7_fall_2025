@@ -56,6 +56,7 @@ class StateMachineNode(Node):
         self.tracking_enabled = False
 
         # TODO: Initialize member variables to track detection state
+        self.last_detection_pos = pass # TODO: Store the last detection in the image so that we choose the closest detection in this frame
         self.target_pos = pass  # TODO: Store the target's normalized position in the image (range: -0.5 to 0.5, where 0 is center)
         self.last_detection_time = pass  # TODO: Store the timestamp of the most recent detection for timeout checking
         
