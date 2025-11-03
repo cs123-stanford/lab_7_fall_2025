@@ -89,7 +89,8 @@ class StateMachineNode(Node):
         TODO: Implement detection processing
         - Check if any detections exist in msg.detections
         - Calculate the normalized center position for each detection (x-coordinate / IMAGE_WIDTH - 0.5)
-        - Find the detection closest to the image center (smallest absolute normalized position)
+        - Initially, find the detection closest to the image center (smallest absolute normalized position)
+        - After initial detection, find the detection closest to the last detection so that Pupper tracks the same person
         - Store the normalized position in self.target_pos
         - Update self.last_detection_time with the current timestamp
         """
