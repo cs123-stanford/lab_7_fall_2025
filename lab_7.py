@@ -7,6 +7,7 @@ from std_msgs.msg import String
 import numpy as np
 import sys
 import os
+import time
 
 # Add pupper_llm to path
 sys.path.append(os.path.dirname(__file__))
@@ -14,10 +15,10 @@ sys.path.append(os.path.dirname(__file__))
 IMAGE_WIDTH = 700
 
 # TODO: Define constants for the state machine behavior
-TIMEOUT = pass  # TODO: Set the timeout threshold (in seconds) for determining when a detection is too old
-SEARCH_YAW_VEL = pass  # TODO: Set the angular velocity (rad/s) for rotating while searching for the target
-TRACK_FORWARD_VEL = pass  # TODO: Set the forward velocity (m/s) while tracking the target
-KP = pass  # TODO: Set the proportional gain for the proportional controller that centers the target
+TIMEOUT = 0.75  # TODO: Set the timeout threshold (in seconds) for determining when a detection is too old
+SEARCH_YAW_VEL = 1.75  # TODO: Set the angular velocity (rad/s) for rotating while searching for the target
+TRACK_FORWARD_VEL = 0.65  # TODO: Set the forward velocity (m/s) while tracking the target
+KP = 2  # TODO: Set the proportional gain for the proportional controller that centers the target
 
 class State(Enum):
     IDLE = 0     # Stay in place, no tracking
@@ -56,9 +57,9 @@ class StateMachineNode(Node):
         self.tracking_enabled = False
 
         # TODO: Initialize member variables to track detection state
-        self.last_detection_pos = pass # TODO: Store the last detection in the image so that we choose the closest detection in this frame
-        self.target_pos = pass  # TODO: Store the target's normalized position in the image (range: -0.5 to 0.5, where 0 is center)
-        self.last_detection_time = pass  # TODO: Store the timestamp of the most recent detection for timeout checking
+        self.last_detection_pos = 0 # TODO: Store the last detection in the image so that we choose the closest detection in this frame
+        self.target_pos = 0  # TODO: Store the target's normalized position in the image (range: -0.5 to 0.5, where 0 is center)
+        self.last_detection_time = time.time() - TIMEOUT  # TODO: Store the timestamp of the most recent detection for timeout checking
         
         self.get_logger().info('State Machine Node initialized in IDLE state.')
         self.get_logger().info('Use begin_tracking(object) to enable tracking.')
@@ -95,7 +96,49 @@ class StateMachineNode(Node):
         - Store the normalized position in self.target_pos
         - Update self.last_detection_time with the current timestamp
         """
-        pass  # TODO: Implement detection callback
+        # TODO: Implement detection callback
+
+        if len(msg.detections):
+            return
+        
+        if self.state == State.SEARCH:
+            most_center = float("inf")
+            for detection in msg.detections:
+                cx = detection.bbox.center.x
+                cy = detection.bbox.center.y
+                width = detection.bbox.size_x
+                height = detection.bbox.size_y
+
+                center_position = cx / IMAGE_WIDTH - 0.5
+
+                if np.abs(center_position) < np.abs(most_center):
+                    most_center = center_position
+            
+            self.target_pos = most_center
+            self.last_detection_pos = self.target_pos
+            self.last_detection_time = time.time()
+        elif self.state == State.TRACK:
+            target_pos = self.last_detection_pos
+            best_pos = float("inf")
+            for detection in msg.detections:
+                cx = detection.bbox.center.x
+                cy = detection.bbox.center.y
+                width = detection.bbox.size_x
+                height = detection.bbox.size_y
+
+                center_position = cx / IMAGE_WIDTH - 0.5
+
+                if np.abs(target_pos - center_position) < np.abs(target_pos - best_pos):
+                    best_pos = center_position
+            
+            self.last_detection_pos = self.target_pos
+            self.target_pos = best_pos
+            self.last_detection_time = time.time()
+        
+
+
+
+
 
     def timer_callback(self):
         """
@@ -114,9 +157,9 @@ class StateMachineNode(Node):
         # - Convert the time difference from nanoseconds to seconds
         # - If time_since_detection > TIMEOUT, transition to State.SEARCH
         # - Otherwise, transition to State.TRACK
-        time_since_detection = pass  # TODO: Calculate time since last detection
-        
-        if False:  # TODO: Replace with condition checking
+        time_since_detection = time.time() - self.last_detection_time  # TODO: Calculate time since last detection
+ 
+        if time_since_detection > TIMEOUT:  # TODO: Replace with condition checking
             self.state = State.SEARCH
         else:
             self.state = State.TRACK
@@ -135,14 +178,24 @@ class StateMachineNode(Node):
             # - Set yaw_command to rotate in the direction where the target was last seen
             # - Use SEARCH_YAW_VEL and rotate opposite to the sign of self.target_pos
             # - Keep forward_vel_command = 0.0 (don't move forward while searching)
-            pass  # TODO: Implement SEARCH state behavior
+
+            direction = 1
+            if self.target_pos > 0:
+                direction = -1
+            
+            forward_vel_command = 0.0
+            yaw_command = direction * SEARCH_YAW_VEL
         
         elif self.state == State.TRACK:
             # TODO: Implement tracking behavior using proportional control
             # - Set yaw_command using a proportional controller: -self.target_pos * KP
             # - This will turn the robot to center the target in the camera view
             # - Set forward_vel_command to TRACK_FORWARD_VEL to move toward the target
-            pass  # TODO: Implement TRACK state behavior
+
+            forward_vel_command = TRACK_FORWARD_VEL
+            yaw_command = -self.target_pos * KP
+
+
 
         cmd = Twist()
         cmd.angular.z = yaw_command
