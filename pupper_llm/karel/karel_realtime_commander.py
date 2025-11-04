@@ -129,7 +129,40 @@ class KarelRealtimeCommanderNode(Node):
             line = "<move, turn_left>"
             returns ['move', 'turn_left']
         """
-        pass
+        line = line.lower().strip()
+        line = re.sub(r'[<>]', '', line)
+        parts = re.split(r'[,\s]+and\s+|,', line)
+        commands = []
+
+        for p in parts:
+            p = p.strip()
+            if not p:
+                continue
+            if re.search(r'\b(forward|go)\b', p):
+                commands.append("move")
+            if re.search(r'\b(backward|reverse)\b', p):
+                commands.append("back")
+            if re.search(r'\b(spin left|turn left)\b', p):
+                commands.append("turn_left")
+            if re.search(r'\b(spin right|turn right)\b', p):
+                commands.append("turn_right")
+            if re.search(r'\b(move left)\b', p):
+                commands.append("move_left")
+            if re.search(r'\b(move right)\b', p):
+                commands.append("move_right")
+            if re.search(r'\b(bark|woof)\b', p):
+                commands.append("bark")
+            if re.search(r'\b(wag|wiggle|tail)\b', p):
+                commands.append("wiggle")
+            if re.search(r'\b(bob|nod|bounce)\b', p):
+                commands.append("bob")
+            if re.search(r'\b(dance|boogie)\b', p):
+                commands.append("dance")
+            if re.search(r'\b(stop|halt)\b', p):
+                commands.append("stop")
+            else:
+                logger.debug(f"Unrecognized phrase: '{p}'")
+        return commands
     
     async def execute_command(self, command: str) -> bool:
         """Execute a single robot command."""
@@ -158,7 +191,33 @@ class KarelRealtimeCommanderNode(Node):
             #   - For "dance" actions, the full dance is ~12.0 seconds; use await asyncio.sleep(12.0)
             #   - For most normal moves and turns, use 0.5 seconds.
             # See the KarelPupper API for supported commands and their method names.
-                pass
+            elif command in ["back", "reverse"]:
+                self.pupper.move_backward()
+                await asyncio.sleep(0.5)
+            elif command in ["turn_left", "left"]:
+                self.pupper.turn_left()
+                await asyncio.sleep(0.5)
+            elif command in ["turn_right", "right"]:
+                self.pupper.turn_right()
+                await asyncio.sleep(0.5)
+            elif command in ["bark", "woof"]:
+                self.pupper.bark()
+                await asyncio.sleep(2.0)
+            elif command in ["wiggle", "wag"]:
+                self.pupper.wiggle()
+                await asyncio.sleep(5.5)
+            elif command in ["bob", "nod"]:
+                self.pupper.bob()
+                await asyncio.sleep(5.5)
+            elif command in ["dance", "boogie"]:
+                self.pupper.dance()
+                await asyncio.sleep(12.0)
+            elif command in ["stop", "halt"]:
+                self.pupper.stop()
+                await asyncio.sleep(0.5)
+            else:
+                logger.warning(f"Unknown command: {command}")
+                return False
             
             else:
                 logger.warning(f"⚠️  Unknown command: {command}")
