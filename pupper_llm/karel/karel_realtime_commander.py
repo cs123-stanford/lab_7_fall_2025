@@ -146,9 +146,9 @@ class KarelRealtimeCommanderNode(Node):
                 commands.append("turn_left")
             if re.search(r'\b(spin right|turn right)\b', p):
                 commands.append("turn_right")
-            if re.search(r'\b(move left)\b', p):
+            if re.search(r'\b(move left|strafe left)\b', p):
                 commands.append("move_left")
-            if re.search(r'\b(move right)\b', p):
+            if re.search(r'\b(move right|strafe right)\b', p):
                 commands.append("move_right")
             if re.search(r'\b(bark|woof)\b', p):
                 commands.append("bark")
@@ -160,6 +160,11 @@ class KarelRealtimeCommanderNode(Node):
                 commands.append("dance")
             if re.search(r'\b(stop|halt)\b', p):
                 commands.append("stop")
+            if match := re.search(r'\b(start tracking|track the|follow the)\s+(\w+)', p):
+                object_name = match.group(2)
+                commands.append(f"track_{object_name}")
+            elif re.search(r'\b(stop tracking|stop following)\b', p):
+                commands.append("stop_tracking")
             else:
                 logger.debug(f"Unrecognized phrase: '{p}'")
         return commands
@@ -200,6 +205,12 @@ class KarelRealtimeCommanderNode(Node):
             elif command in ["turn_right", "right"]:
                 self.pupper.turn_right()
                 await asyncio.sleep(0.5)
+            elif command in ["move_left"]:
+                self.pupper.move_left()
+                await asyncio.sleep(0.5)
+            elif command in ["move_right"]:
+                self.pupper.move_right()
+                await asyncio.sleep(0.5)
             elif command in ["bark", "woof"]:
                 self.pupper.bark()
                 await asyncio.sleep(2.0)
@@ -214,6 +225,13 @@ class KarelRealtimeCommanderNode(Node):
                 await asyncio.sleep(12.0)
             elif command in ["stop", "halt"]:
                 self.pupper.stop()
+                await asyncio.sleep(0.5)
+            elif command.startswith("track_"):
+                object_name = command.split("_", 1)[1]
+                self.pupper.begin_tracking(object_name)
+                await asyncio.sleep(0.5)
+            elif command == "stop_tracking":    
+                self.pupper.end_tracking()
                 await asyncio.sleep(0.5)
             else:
                 logger.warning(f"Unknown command: {command}")
